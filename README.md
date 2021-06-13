@@ -1,2 +1,2 @@
-# juhyunOS
+# Authorship
  Forked from https://github.com/Absurdponcho
