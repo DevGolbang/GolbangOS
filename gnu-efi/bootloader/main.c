@@ -1,6 +1,7 @@
 #include <efi.h>
 #include <efilib.h>
 #include <elf.h>
+
 typedef unsigned long long size_t;
 typedef struct {
 	void* BaseAddress;
@@ -94,9 +95,18 @@ int memcmp(const void* aptr, const void* bptr, size_t n){
 	}	
 	return 0;
 }
+
+typedef struct{
+	FrameBuffer* framebuffer;
+	PSF1_FONT* PSF1_Font;
+	EFI_MEMORY_DESCRIPTOR* mMap;
+	UINTN mMapSize;
+	UINTN mMapDescSize;
+} BootInfo;
+
 EFI_STATUS efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
 	InitializeLib(ImageHandle, SystemTable);
-	Print(L"String blah blah blah \n\r");
+	Print(L"System is On EFI Protocol\n\r");
 
 	EFI_FILE* Kernel = LoadFile(NULL, L"kernel.elf", ImageHandle, SystemTable);
 	if(LoadFile(NULL, L"kernel.elf", ImageHandle, SystemTable) == NULL) Print(L"Kernel Fucked\n\r");
@@ -155,7 +165,7 @@ EFI_STATUS efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
 	}
 	Print(L"Kernel Loaded\n\r");
 
-	void (*KernelStart)(FrameBuffer*, PSF1_FONT*) = ((__attribute__((sysv_abi)) void (*)(FrameBuffer*, PSF1_FONT*) ) header.e_entry); //커널함수(시작점)지정
+
 
 	
 	PSF1_FONT* newFont = LoadPSF1Font(NULL, L"zap-light16.psf", ImageHandle, SystemTable);
@@ -170,8 +180,27 @@ EFI_STATUS efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
 	newBuffer->Height,
 	newBuffer->PixelsPerScanLine);
 
-;
+	EFI_MEMORY_DESCRIPTOR* Map = NULL;
+	UINTN MapSize, MapKey;
+	UINTN DescriptorSize;
+	UINT32 DescriptorVersion;
+	{
+		SystemTable->BootServices->GetMemoryMap(&MapSize, Map, &MapKey, &DescriptorSize, &DescriptorVersion);
+		SystemTable->BootServices->AllocatePool(EfiLoaderData, MapSize, (void**)&Map);
+		SystemTable->BootServices->GetMemoryMap(&MapSize, Map, &MapKey, &DescriptorSize, &DescriptorVersion);
 
-	KernelStart(newBuffer, newFont);
-	return EFI_SUCCESS; //UEFI 어플레케이션 종료
+	}
+	void (*KernelStart)(BootInfo*) = ((__attribute__((sysv_abi)) void (*)(BootInfo*) ) header.e_entry); //커널함수(시작점)지정
+
+	BootInfo bootInfo;
+	bootInfo.framebuffer = newBuffer;
+	bootInfo.PSF1_Font = newFont;
+	bootInfo.mMap = Map;
+	bootInfo.mMapSize = MapSize;
+	bootInfo.mMapDescSize = DescriptorSize;
+
+
+SystemTable->BootServices->ExitBootServices(ImageHandle, MapKey);
+	KernelStart(&bootInfo);
+	return EFI_SUCCESS; //UEFI 어플리케이션 종료
 }
