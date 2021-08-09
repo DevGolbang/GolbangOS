@@ -1,5 +1,9 @@
+#pragma once
+
+#include <stdint.h>
 #include "BasicRenderer.h"
 #include "cstr.h"
+#include "efiMemory.h"
 #include "memory.h"
 #include "Bitmap.h"
 #include "paging/PageFrameAllocator.h"
@@ -22,4 +26,4 @@ struct KernelInfo {
     PageTableManager* pageTableManager;
 };
 
-KernelInfo InitializeKernel(BootInfo* BootInfo);
+KernelInfo InitializeKernel(BootInfo* bootInfo);

@@ -1,5 +1,6 @@
 #include "BasicRenderer.h"
 
+BasicRenderer* GlobalRenderer;
 BasicRenderer::BasicRenderer(FrameBuffer* targetFramebuffer, PSF1_FONT* psf1_font){
     TargetFramebuffer = targetFramebuffer;
     PSF1_Font = psf1_font;
@@ -30,4 +31,33 @@ void BasicRenderer::PutChar(char chr, unsigned int xOff, unsigned yOff){
         }
         fontPtr++;
     }
+}
+void BasicRenderer::PutChar(char chr){
+    PutChar(chr, CursorPosition.X, CursorPosition.Y);
+    CursorPosition.X += 8;
+    if(CursorPosition.X + 8 > TargetFramebuffer->Width){
+        CursorPosition.X = 0;
+        CursorPosition.Y += 16;
+    }
+}
+void BasicRenderer::Clear(uint32_t colour){
+    uint64_t fbBase = (uint64_t)TargetFramebuffer->BaseAddress;
+    uint64_t bytesPerScanline = TargetFramebuffer-> PixelsPerScanLine * 4;
+    uint64_t fbHeight = TargetFramebuffer->Height;
+    uint64_t fbSize = TargetFramebuffer->BufferSize;
+
+    for(int verticalScanline = 0; verticalScanline < fbHeight; verticalScanline++){
+        uint64_t pixPtrBase = fbBase + (bytesPerScanline * verticalScanline);
+        for(uint32_t* pixPtr = (uint32_t*)pixPtrBase; pixPtr < (uint32_t*)(pixPtrBase + bytesPerScanline); pixPtr++){
+            *pixPtr = colour;
+        }
+    }
+}
+void BasicRenderer::Next(){
+    CursorPosition.X = 0;
+    CursorPosition.Y += 16;
+}
+void BasicRenderer::PrintLine(const char* str){
+    this->Print(str);
+    this->Next();
 }

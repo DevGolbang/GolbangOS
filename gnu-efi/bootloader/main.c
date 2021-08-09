@@ -23,6 +23,28 @@ typedef struct{
 	PSF1_HEADER* psf1_Header;
 	void* glyphBuffer;
 } PSF1_FONT;
+
+FrameBuffer framebuffer;
+FrameBuffer* InitializeGOP(){ //GOP렌더러 초기화
+	EFI_GUID gopGuid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
+	EFI_GRAPHICS_OUTPUT_PROTOCOL* gop;
+	EFI_STATUS status;
+
+	status = uefi_call_wrapper(BS->LocateProtocol,3, &gopGuid, NULL, (void**)&gop);
+	if(EFI_ERROR(status)) {
+		Print(L"Unable to locate GOP\n\r");
+		return NULL;
+	}
+	else Print(L"GOP Located\n\r");
+
+	framebuffer.BaseAddress = (void*)gop->Mode->FrameBufferBase;
+	framebuffer.BufferSize = gop->Mode->FrameBufferSize;
+	framebuffer.Width = gop->Mode->Info->HorizontalResolution;
+	framebuffer.Height = gop->Mode->Info->VerticalResolution;
+	framebuffer.PixelsPerScanLine = gop->Mode->Info->PixelsPerScanLine;
+	return &framebuffer;
+}
+
 EFI_FILE* LoadFile(EFI_FILE* Directory, CHAR16* Path, EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable){
 	EFI_FILE* LoadedFile;
 
@@ -38,6 +60,7 @@ EFI_FILE* LoadFile(EFI_FILE* Directory, CHAR16* Path, EFI_HANDLE ImageHandle, EF
 	if(s != EFI_SUCCESS) return NULL;
 	return LoadedFile;
 }
+
 PSF1_FONT* LoadPSF1Font(EFI_FILE* Directory, CHAR16* Path, EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable){
 	EFI_FILE* font = LoadFile(Directory, Path, ImageHandle, SystemTable);
 	if(font == NULL) return NULL;
@@ -65,26 +88,7 @@ PSF1_FONT* LoadPSF1Font(EFI_FILE* Directory, CHAR16* Path, EFI_HANDLE ImageHandl
 	return finishedFont;
 
 } 
-FrameBuffer framebuffer;
-FrameBuffer* InitializeGOP(){ //GOP렌더러 초기화
-	EFI_GUID gopGuid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
-	EFI_GRAPHICS_OUTPUT_PROTOCOL* gop;
-	EFI_STATUS status;
 
-	status = uefi_call_wrapper(BS->LocateProtocol,3, &gopGuid, NULL, (void**)&gop);
-	if(EFI_ERROR(status)) {
-		Print(L"Unable to locate GOP\n\r");
-		return NULL;
-	}
-	else Print(L"GOP Located\n\r");
-
-	framebuffer.BaseAddress = (void*)gop->Mode->FrameBufferBase;
-	framebuffer.BufferSize = gop->Mode->FrameBufferSize;
-	framebuffer.Width = gop->Mode->Info->HorizontalResolution;
-	framebuffer.Height = gop->Mode->Info->VerticalResolution;
-	framebuffer.PixelsPerScanLine = gop->Mode->Info->PixelsPerScanLine;
-	return &framebuffer;
-}
 
 
 int memcmp(const void* aptr, const void* bptr, size_t n){
@@ -109,7 +113,7 @@ EFI_STATUS efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
 	Print(L"System is On EFI Protocol\n\r");
 
 	EFI_FILE* Kernel = LoadFile(NULL, L"kernel.elf", ImageHandle, SystemTable);
-	if(LoadFile(NULL, L"kernel.elf", ImageHandle, SystemTable) == NULL) Print(L"Kernel Fucked\n\r");
+	if(Kernel == NULL) Print(L"Kernel Fucked\n\r");
 	else Print(L"Kernel Loaded\n\r");
 
 	Elf64_Ehdr header;
@@ -133,7 +137,8 @@ EFI_STATUS efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
 	) Print(L"Kernel Format Fucked!\n\r");
 	else Print(L"Kernel Header Verified~!\n\r");
 
-	Elf64_Phdr* phdrs;{ //프로그램 헤더 포인터
+	Elf64_Phdr* phdrs;
+	{ //프로그램 헤더 포인터
 		Kernel->SetPosition(Kernel, header.e_phoff);
 		UINTN size = header.e_phnum * header.e_phentsize;
 		SystemTable->BootServices->AllocatePool(EfiLoaderData, size, (void**)&phdrs);

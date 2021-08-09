@@ -60,6 +60,7 @@ void* PageFrameAllocator::RequestPage(){
     }
     return NULL; //파일로 스왑할 페이지 프레임부분
 }
+
  void PageFrameAllocator::FreePage(void* address){
      uint64_t index = (uint64_t)address / 4096;
      if(PageBitmap[index] == false) return;
@@ -95,6 +96,7 @@ void* PageFrameAllocator::RequestPage(){
      if(PageBitmap.Set(index, false)){
         freeMemory += 4096;
         reservedMemory -= 4096;
+        if(pagebitmapIndex > index) pagebitmapIndex = index;
      }
  }
  
