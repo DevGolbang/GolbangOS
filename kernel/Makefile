@@ -1,5 +1,5 @@
 
-OSNAME = CustomOS
+OSNAME = GolbangOS
 
 GNUEFI = ../gnu-efi
 OVMFDIR = ../OVMFbin

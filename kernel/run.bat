@@ -1,4 +1,4 @@
-set OSNAME=CustomOS
+set OSNAME=GolbangOS
 set BUILDDIR=%0/../bin
 set OVMFDIR=%0/../../OVMFbin
 
